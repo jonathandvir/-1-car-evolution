@@ -42,6 +42,7 @@ local function defaults()
 		Passes = {}, -- [pass key] = true for game passes owned (kept in case Roblox is slow to say)
 		StarterGiven = false, -- has the Starter Pack been handed out
 		Receipts = {}, -- the last developer product purchase ids handed out, so a retry never gives twice
+		PendingDoubleStage = 0, -- the stage whose purple 2x Wins pad was last offered (so a purchase that lands after a rejoin still pays)
 		AllPasses = false, -- admins only: their ALL PASSES switch (every pass, free products)
 		AdminFavorites = {}, -- admins only: the Admin Panel sections they starred
 		DailyDay = 0, -- the streak day of the last daily reward claimed (1 to 7)

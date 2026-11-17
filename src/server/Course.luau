@@ -803,23 +803,28 @@ function Course.stageAt(z)
 	return nil
 end
 
--- A row of coloured pads across the end of a stage's last platform, each paying a different
--- number of Wins (Config.Stages.WinsPads), each once per run (Server.Roads hands them out)
-local PAD_COLORS = { rgb(70, 220, 255), rgb(255, 215, 40), rgb(255, 90, 190), rgb(110, 240, 90) }
+-- Two pads across the end of a stage's last platform (Server.Roads hands them out): gold on
+-- the left pays the stage's Wins, purple on the right offers double for Robux (StageWins2x).
+-- Driving out, the stages run towards +Z, so the player's left is the +X side.
+local PADS = {
+	-- (Neon glows brighter than its colour, so these are darker than they look in game)
+	{ Color = rgb(190, 110, 0), Title = "STAGE %d", Fill = { rgb(255, 235, 110), rgb(240, 170, 20) } }, -- gold, free
+	{ Color = rgb(95, 25, 200), Title = "2x WINS!", Fill = { rgb(225, 170, 255), rgb(150, 70, 255) } }, -- purple, paid
+}
 local function winsPads(parent, stage, cx, width, z1, y)
-	local shares = Config.Stages.WinsPads
 	local gap = 2
-	local padWidth = (width - gap * (#shares + 1)) / #shares
-	for i in shares do
-		local x0 = cx - width / 2 + gap + (i - 1) * (padWidth + gap)
+	local padWidth = (width - gap * 3) / 2
+	for i, look in PADS do
+		-- pad 1 (gold) on the +X half, pad 2 (purple) on the -X half
+		local x0 = if i == 1 then cx + gap / 2 else cx - gap / 2 - padWidth
 		local wins = Config.stagePadWins(stage, i)
-		local pad = slab(parent, "WinsPad", x0, x0 + padWidth, z1 - 16, z1 - 3, y + 0.8, 0.4, PAD_COLORS[(i - 1) % #PAD_COLORS + 1], { Material = Enum.Material.Neon })
+		local pad = slab(parent, "WinsPad", x0, x0 + padWidth, z1 - 16, z1 - 3, y + 0.8, 0.4, look.Color, { Material = Enum.Material.Neon })
 		pad.Transparency = 0.1
 		pad:SetAttribute("Stage", stage)
 		pad:SetAttribute("Index", i)
 		pad:SetAttribute("Wins", wins)
 		CollectionService:AddTag(pad, "WinsPad")
-		-- a little narrower than the pad, so the four signs never run into each other, and
+		-- a little narrower than the pad, so the two signs never run into each other, and
 		-- only shown up close so they don't cover the next stage's sign from afar
 		local anchor = part(parent, { Name = "WinsSign", Size = Vector3.one, Position = pad.Position + Vector3.new(0, 4.5, 0), Transparency = 1, CanCollide = false, CanQuery = false, CanTouch = false })
 		local gui = Instance.new("BillboardGui")
@@ -832,8 +837,8 @@ local function winsPads(parent, stage, cx, width, z1, y)
 		list.VerticalAlignment = Enum.VerticalAlignment.Center
 		list.SortOrder = Enum.SortOrder.LayoutOrder
 		list.Parent = gui
-		signLine(gui, "STAGE " .. stage, WHITE, 0.4, 1)
-		signLine(gui, "+" .. Format.short(wins) .. " Wins", nil, 0.55, 2, { rgb(150, 255, 90), rgb(60, 200, 60) })
+		signLine(gui, string.format(look.Title, stage), WHITE, 0.4, 1)
+		signLine(gui, "+" .. Format.short(wins) .. " Wins", nil, 0.55, 2, look.Fill)
 	end
 end
 

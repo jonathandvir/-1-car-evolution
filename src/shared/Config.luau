@@ -157,6 +157,7 @@ Config.Products = {
 	PackHuge = { Id = 3732423935, Name = "Huge Horsepower Pack", Price = 449, Share = 25 },
 	Respawn = { Id = 3732424083, Name = "Respawn at Stage", Price = 9 }, -- after falling: back to the start of that stage
 	SkipRebirth = { Id = 3732424231, Name = "Skip Rebirth", Price = 49 }, -- rebirth now, without the level
+	StageWins2x = { Id = 0, Name = "2x Stage Wins", Price = 19 }, -- the purple pad at the end of a stage: double that stage's Wins
 }
 Config.PackOrder = { "PackSmall", "PackMedium", "PackBig", "PackHuge" }
 
@@ -197,11 +198,11 @@ Config.Stages.HorsepowerNeeded = {}
 for stage, level in Config.Stages.RequiredLevel do
 	Config.Stages.HorsepowerNeeded[stage] = Config.levelNeed(level)
 end
--- Each stage ends in a row of Wins pads. The first pays Wins[stage]; the others pay that
--- times their share (so stage 1's pads pay 3, 4, 6 and 8). Each pays once per run out
--- from the lobby.
+-- Each stage ends in two Wins pads: gold on the left pays Wins[stage], and purple on the right
+-- pays double through the StageWins2x developer product. One per run out from the lobby,
+-- then it sends you back to the lobby.
 Config.Stages.Wins = { 3, 6, 10, 16, 25, 40, 60, 90, 135, 200, 300, 450, 700, 1000, 1500 }
-Config.Stages.WinsPads = { 1, 1.34, 2, 2.67 }
+Config.Stages.WinsPads = { 1, 2 } -- [1] gold (free), [2] purple (2x, paid)
 
 function Config.stagePadWins(stage, index)
 	local base = Config.Stages.Wins[stage] or 0

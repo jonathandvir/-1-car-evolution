@@ -582,21 +582,76 @@ end
 -- Wins pads are checked by position, not Touched, because a car driving on its own road
 -- passes just above the pad without touching it. Anyone over a pad (up to car height
 -- above it, or a little after it, so a fast car can't skip it between checks) claims it.
+-- Pad 1 (gold) pays the stage's Wins; pad 2 (purple) offers 2x Stage Wins for Robux. Either
+-- way it's one claim per stage per run, and then the player goes back to the lobby.
 local winsPads = {} -- { Pad, Stage, Index }
+local GOLD, PURPLE = 1, 2
+local HOME_DELAY = 1.5 -- seconds to enjoy the "Stage complete!" before going back to the lobby
+
+-- the Wins a stage pays this player at a pad, with every Wins boost they have
+local function stageWins(data, stage, index)
+	return Config.stagePadWins(stage, index) * (if Store.has(data, "DoubleWins") then 2 else 1) * Admin.eventMultiplier("DoubleWins") * Data.boostMultiplier(data, "DoubleWins")
+end
+
+local function sendHome(player)
+	task.delay(HOME_DELAY, function()
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if root and not Map.inLobby(root.Position) then
+			root.AssemblyLinearVelocity = Vector3.zero
+			-- facing out towards the stages, like a fresh spawn
+			character:PivotTo(CFrame.lookAt(Map.SpawnPosition, Map.SpawnPosition + Vector3.new(0, 0, 1)))
+			notice:FireClient(player, { Kind = "BackToLobby" })
+		end
+	end)
+end
 
 local function payWins(player, stage, index)
 	local data = Data.get(player)
 	local s = stateOf(player)
-	local key = stage .. ":" .. index
-	if not data or s.Claimed[key] then
+	if not data or s.Claimed[stage .. ":" .. GOLD] then
 		return
 	end
-	s.Claimed[key] = true
-	local wins = Config.stagePadWins(stage, index) * (if Store.has(data, "DoubleWins") then 2 else 1) * Admin.eventMultiplier("DoubleWins") * Data.boostMultiplier(data, "DoubleWins")
+	s.Claimed[stage .. ":" .. GOLD] = true
+	local wins = stageWins(data, stage, index)
 	data.Wins += wins
 	Data.publish(player)
-	notice:FireClient(player, { Kind = "StageComplete", Stage = stage, Wins = wins })
+	notice:FireClient(player, { Kind = "StageComplete", Stage = stage, Wins = wins, Double = index == PURPLE })
+	sendHome(player)
 end
+
+-- standing on the purple pad: offer 2x Stage Wins (once each time they step onto it)
+local function offerDouble(player, stage)
+	local data = Data.get(player)
+	local s = stateOf(player)
+	if not data or s.Claimed[stage .. ":" .. GOLD] or s.OnPurple == stage then
+		return
+	end
+	s.OnPurple = stage
+	data.PendingDoubleStage = stage
+	Store.buyProduct(player, "StageWins2x")
+end
+
+Store.onProduct("StageWins2x", function(player, data)
+	local stage = data.PendingDoubleStage
+	if stage < 1 or stage > #Config.Stages.Wins then
+		stage = 1
+	end
+	data.PendingDoubleStage = 0
+	local s = stateOf(player)
+	if s.Claimed[stage .. ":" .. GOLD] then
+		-- they took the gold pad while the purchase was going through: top it up to double
+		local extra = stageWins(data, stage, PURPLE) - stageWins(data, stage, GOLD)
+		data.Wins += extra
+		Data.publish(player)
+		notice:FireClient(player, { Kind = "StageComplete", Stage = stage, Wins = extra, Double = true })
+		return
+	end
+	payWins(player, stage, PURPLE)
+end, function(player, data)
+	local stage = data.PendingDoubleStage
+	return stage >= 1 and not stateOf(player).Claimed[stage .. ":" .. GOLD]
+end)
 
 -- has this player reached one of this stage's Wins pads on this run out from the lobby?
 function Roads.finished(player, stage)
@@ -683,10 +738,19 @@ function Roads.start(remotes, noticeRemote)
 				local character = player.Character
 				local root = character and character:FindFirstChild("HumanoidRootPart")
 				if root then
+					local purple = nil
 					for _, entry in winsPads do
 						if entry.Pad.Parent and overPad(entry.Pad, root.Position) then
-							payWins(player, entry.Stage, entry.Index)
+							if entry.Index == PURPLE then
+								purple = entry.Stage
+								offerDouble(player, entry.Stage)
+							else
+								payWins(player, entry.Stage, GOLD)
+							end
 						end
+					end
+					if not purple then
+						stateOf(player).OnPurple = nil -- stepped off: offer again if they come back
 					end
 				end
 			end

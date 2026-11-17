@@ -56,7 +56,8 @@ local function sendToLobby(player, stage)
 	if stage and Roads.finished(player, stage) and stage < #Config.Stages.RequiredLevel then
 		stage += 1
 	end
-	moveTo(player, CFrame.new(Map.SpawnPosition))
+	moveTo(player, CFrame.lookAt(Map.SpawnPosition, Map.SpawnPosition + Vector3.new(0, 0, 1))) -- facing the stages
+	NoticeRemote:FireClient(player, { Kind = "BackToLobby" })
 	if stage then
 		fellOn[player] = stage
 		NoticeRemote:FireClient(player, { Kind = "Fell", Stage = stage })

@@ -698,7 +698,20 @@ remotes.Notice.OnClientEvent:Connect(function(notice)
 		showToast(`You need {Format.short(notice.Need)} more Horsepower to build on Stage {notice.Stage}!`, Color3.fromRGB(255, 110, 110))
 	elseif notice.Kind == "StageComplete" then
 		winSound:Play()
-		showToast(`Stage {notice.Stage} complete! +{Format.short(notice.Wins)} Wins`, Ui.Yellow)
+		if notice.Double then
+			showToast(`2x WINS! Stage {notice.Stage} complete! +{Format.short(notice.Wins)} Wins`, Color3.fromRGB(215, 150, 255))
+		else
+			showToast(`Stage {notice.Stage} complete! +{Format.short(notice.Wins)} Wins`, Ui.Yellow)
+		end
+	elseif notice.Kind == "BackToLobby" then
+		-- sent back to the lobby: stop any road, and swing the camera round behind the car,
+		-- looking out towards the stages
+		stopDriving()
+		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		if root then
+			local camera = workspace.CurrentCamera
+			camera.CFrame = CFrame.lookAt(root.Position + Vector3.new(0, 8, -18), root.Position + Vector3.new(0, 2, 0))
+		end
 	elseif notice.Kind == "NeedEnergy" then
 		showToast(`You need {Format.short(notice.Need)} more Horsepower!`, Color3.fromRGB(255, 110, 110))
 	elseif notice.Kind == "NeedWins" then

@@ -827,7 +827,8 @@ function Map.build()
 	spawn.Name = "Spawn"
 	spawn.Anchored = true
 	spawn.Size = Vector3.new(12, 1, 12)
-	spawn.Position = Map.SpawnPosition - Vector3.new(0, 3.5, 0)
+	-- players spawn facing the way the spawn faces: out towards the stages (+Z), not the leaderboards
+	spawn.CFrame = CFrame.lookAt(Map.SpawnPosition - Vector3.new(0, 3.5, 0), Map.SpawnPosition - Vector3.new(0, 3.5, 0) + Vector3.new(0, 0, 1))
 	spawn.Transparency = 1
 	spawn.CanCollide = false
 	spawn.Duration = 0
