@@ -341,7 +341,24 @@ local function beginDrive()
 end
 
 local groundStart = nil -- where the car first touched ground past the end of the road
-local function stopDriving()
+local LAND_HOLD = 0.7 -- after landing, the car stays put this long (while it flips) before you can drive
+local MOVE_KEYS = { Enum.KeyCode.W, Enum.KeyCode.A, Enum.KeyCode.S, Enum.KeyCode.D, Enum.KeyCode.Up, Enum.KeyCode.Down, Enum.KeyCode.Left, Enum.KeyCode.Right }
+local holdToken = 0
+-- stop the car dead where it is (it keeps any fall, so it never hangs in the air)
+local function brake()
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if humanoid then
+		humanoid:Move(Vector3.zero, false)
+	end
+	if root then
+		root.AssemblyLinearVelocity = Vector3.new(0, math.min(root.AssemblyLinearVelocity.Y, 0), 0)
+	end
+end
+-- landed: true when the road just landed on the ground. The car then stays still for its
+-- flip, and the controls come back after, so a held key or joystick can't push it off the edge.
+local function stopDriving(landed)
 	groundStart = nil
 	if not driving then
 		return
@@ -350,7 +367,53 @@ local function stopDriving()
 	phase = nil
 	setDrivingLook(false)
 	roadMeterGroup.Visible = false
-	if controls then
+	brake()
+	holdToken += 1
+	local token = holdToken
+	RunService:UnbindFromRenderStep("LandHold")
+	if landed == true then
+		-- Roblox's controls switch themselves back on when a key is pressed, so the brake runs
+		-- every frame right after them (and after the drive loop), where it always wins. After
+		-- the flip the controls come back, but a key or joystick still held from the drive is
+		-- ignored until it's let go, so it can't roll the car off the end of a short platform.
+		local started = os.clock()
+		local enabled = false
+		RunService:BindToRenderStep("LandHold", Enum.RenderPriority.Character.Value + 2, function()
+			if token ~= holdToken or driving then
+				RunService:UnbindFromRenderStep("LandHold")
+				return
+			end
+			if os.clock() - started >= LAND_HOLD then
+				if not enabled and controls then
+					enabled = true
+					controls:Enable()
+				end
+				-- (the controls take a few frames to notice a key that's already down, so the
+				-- keys are checked directly too, and the joystick/gamepad after a short moment)
+				local held = false
+				for _, key in MOVE_KEYS do
+					if UserInputService:IsKeyDown(key) then
+						held = true
+						break
+					end
+				end
+				if not held and os.clock() - started < LAND_HOLD + 0.2 then
+					held = true
+				end
+				if not held then
+					local ok, vector = pcall(function()
+						return controls and controls:GetMoveVector()
+					end)
+					held = ok and vector ~= nil and vector.Magnitude > 0.05
+				end
+				if not held then
+					RunService:UnbindFromRenderStep("LandHold") -- let go: driving as normal
+					return
+				end
+			end
+			brake()
+		end)
+	elseif controls then
 		controls:Enable()
 	end
 	-- hand the camera back to Roblox, where it was
@@ -528,14 +591,15 @@ RunService:BindToRenderStep("DriveRoad", Enum.RenderPriority.Character.Value + 1
 			-- keep rolling a few studs onto the ground so the car never stops right at the
 			-- edge (and falls off it when the road disappears); stop early if the ground ends
 			groundStart = groundStart or root.Position
-			local ahead = workspace:Raycast(root.Position + (heading or Vector3.zero) * 4, Vector3.new(0, -8, 0), params)
+			-- (looks 8 studs ahead: at speed the car needs a moment to come off the road)
+			local ahead = workspace:Raycast(root.Position + (heading or Vector3.zero) * 8, Vector3.new(0, -8, 0), params)
 			local onFar = ((root.Position - groundStart) * Vector3.new(1, 0, 1)).Magnitude
 			if onFar >= 6 or not isGround(ahead) then
 				if roadReached then
 					landedRemote:FireServer()
 					landSound:Play()
 				end
-				stopDriving()
+				stopDriving(roadReached)
 			end
 		end
 	end
