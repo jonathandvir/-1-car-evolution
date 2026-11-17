@@ -157,7 +157,7 @@ Config.Products = {
 	PackHuge = { Id = 3732423935, Name = "Huge Horsepower Pack", Price = 449, Share = 25 },
 	Respawn = { Id = 3732424083, Name = "Respawn at Stage", Price = 9 }, -- after falling: back to the start of that stage
 	SkipRebirth = { Id = 3732424231, Name = "Skip Rebirth", Price = 49 }, -- rebirth now, without the level
-	StageWins2x = { Id = 0, Name = "2x Stage Wins", Price = 19 }, -- the purple pad at the end of a stage: double that stage's Wins
+	StageWins2x = { Id = 3732883592, Name = "2x Stage Wins", Price = 19 }, -- the purple pad at the end of a stage: double that stage's Wins
 }
 Config.PackOrder = { "PackSmall", "PackMedium", "PackBig", "PackHuge" }
 
